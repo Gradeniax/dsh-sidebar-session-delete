@@ -1,6 +1,6 @@
 {
   "name": "dsh-sidebar-session-delete",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Delete any conversation from the left workspace sidebar of DeepSeek Harness, with a restorable trash in between.",
   "type": "module",
   "main": "index.js",
@@ -16,7 +16,10 @@
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "platform": "web"
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
     }
   },
   "files": [

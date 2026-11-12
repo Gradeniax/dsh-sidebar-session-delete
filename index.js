@@ -384,6 +384,7 @@ async function trashSession(deps, sessionId, displayTitle) {
         title: typeof displayTitle === 'string' ? displayTitle : '',
         cwd: typeof storedCwd === 'string' ? storedCwd : '',
         deletedAt: Date.now(),
+        wasArchived: alreadyArchived,
         warnings,
       },
     },
@@ -433,10 +434,21 @@ async function restoreSession(deps, sessionId) {
   })
 
   const warnings = []
-  try {
-    await deps.registry.unarchiveSession(sessionId)
-  } catch (error) {
-    warnings.push(`unarchive: ${textOf(error)}`)
+  /* A conversation archived before it was trashed stays archived on restore:
+   * "restore from trash" undoes the trashing, not the archive the user chose
+   * earlier. */
+  if (record.wasArchived === true) {
+    try {
+      await deps.registry.archiveSession(sessionId)
+    } catch {
+      /* Already archived, or the registry no longer knows it. */
+    }
+  } else {
+    try {
+      await deps.registry.unarchiveSession(sessionId)
+    } catch (error) {
+      warnings.push(`unarchive: ${textOf(error)}`)
+    }
   }
 
   return { status: 200, body: { ok: true, sessionId, warnings } }
@@ -465,13 +477,21 @@ async function purgeSession(deps, sessionId) {
     return { ...current, entries }
   })
 
-  /* Drop the durable hide flag and the Workspace account slot so no invisible
-   * ghost keeps occupying either. Both tolerate unknown ids. */
+  /* Keep the Session archived. Archiving is the flag that hides a row, and a
+   * Session can still be resident in memory after its log is gone; clearing the
+   * flag here would make exactly that Session reappear — detached from every
+   * Workspace — as an "Ungrouped" ghost. A leftover archive id is inert: it can
+   * only hide an id that no longer exists.
+   *
+   * The Workspace account slot is dropped for tidiness; hiding does not depend
+   * on it. Both calls tolerate unknown ids. */
   const warnings = []
-  try {
-    await deps.registry.unarchiveSession(sessionId)
-  } catch (error) {
-    warnings.push(`unarchive: ${textOf(error)}`)
+  if (!deps.registry.archivedSessionIds.includes(sessionId)) {
+    try {
+      await deps.registry.archiveSession(sessionId)
+    } catch (error) {
+      warnings.push(`archive: ${textOf(error)}`)
+    }
   }
   for (const workspace of deps.registry.list()) {
     if (!workspace.sessionIds.includes(sessionId)) continue

@@ -138,42 +138,60 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * Build a translate function bound to the live locale.
+     * Build a translate function that reads the live locale on every call.
+     *
+     * The locale service is resolved lazily rather than captured here: this
+     * module may activate before it (the package declares
+     * `dsh.client.inject` for ordering, but a lazy read also covers a host that
+     * composes them differently). Capturing it once made every string fall back
+     * to English when the service was not yet published.
      * @param ctx - restricted Client context.
      * @returns translate(key, params?) reading the active language at call time.
      */
     function createTranslator(ctx) {
-      const locale = ctx.get('locale')
-      if (locale !== undefined && typeof locale.register === 'function') {
+      /** The locale service, or undefined while it is not published yet. */
+      const locale = () => {
+        try {
+          return ctx.get('locale')
+        } catch {
+          return undefined
+        }
+      }
+
+      const dictionaries = new Set()
+      /** Register this namespace's dictionaries exactly once. */
+      const ensureDictionaries = () => {
+        const service = locale()
+        if (service === undefined || typeof service.register !== 'function') return
         for (const lang of Object.keys(DICTS)) {
+          const key = `${lang}`
+          if (dictionaries.has(key)) continue
+          dictionaries.add(key)
           try {
-            ctx.effect(() => locale.register(NS, lang, DICTS[lang]), `${NS} locale ${lang}`)
+            ctx.effect(() => service.register(NS, lang, DICTS[lang]), `${NS} locale ${lang}`)
           } catch (error) {
+            dictionaries.delete(key)
             console.warn(`[${NS}] locale registration failed for ${lang}`, error)
           }
         }
-        try {
-          const bound = locale.bind(NS)
-          if (typeof bound === 'function') {
-            return (key, params) => {
-              const text = bound(key, params)
-              return typeof text === 'string' && text !== '' && text !== key ? text : fallback(key, params)
-            }
-          }
-        } catch {
-          /* Fall through to the local reader. */
-        }
       }
+
+      /** The dictionary for the language on screen right now. */
       const readActive = () => {
         try {
-          const snapshot = typeof locale?.getLocale === 'function' ? locale.getLocale() : undefined
+          const service = locale()
+          const snapshot = typeof service?.getLocale === 'function' ? service.getLocale() : undefined
           const id = typeof snapshot === 'string' ? snapshot : String(snapshot?.active ?? '')
           return id.toLowerCase().startsWith('zh') ? DICTS.zh : DICTS.en
         } catch {
           return DICTS.en
         }
       }
-      function fallback(key, params) {
+
+      ensureDictionaries()
+
+      return (key, params) => {
+        ensureDictionaries()
         const dict = readActive()
         const template = dict[key] ?? DICTS.en[key] ?? key
         if (params === undefined || typeof params !== 'object') return template
@@ -181,7 +199,32 @@ window.__ModuleLoader__.load({
           typeof params[name] === 'string' || typeof params[name] === 'number' ? String(params[name]) : match,
         )
       }
-      return fallback
+    }
+
+    /**
+     * Re-render a component when the active language changes.
+     *
+     * `t` already reads the live locale; this only supplies the render trigger,
+     * because the locale service notifies subscribers instead of re-mounting
+     * entries.
+     * @param ctx - restricted Client context.
+     * @returns a hook that subscribes the calling component to locale changes.
+     */
+    function createLocaleTick(ctx) {
+      return function useLocaleTick() {
+        const [, force] = React.useState(0)
+        React.useEffect(() => {
+          const service = (() => {
+            try {
+              return ctx.get('locale')
+            } catch {
+              return undefined
+            }
+          })()
+          if (service === undefined || typeof service.subscribe !== 'function') return undefined
+          return service.subscribe(() => force((value) => value + 1))
+        }, [])
+      }
     }
 
     /** Menu row, dialog, and trash-page styles — theme tokens only. */
@@ -588,6 +631,7 @@ window.__ModuleLoader__.load({
       inject: ['slots'],
       apply(ctx) {
         const t = createTranslator(ctx)
+        const useLocaleTick = createLocaleTick(ctx)
 
         ctx.effect(() => {
           const style = document.createElement('style')
@@ -628,10 +672,11 @@ window.__ModuleLoader__.load({
               id: `${NS}.delete`,
               order: 420,
               label: () => t('delete'),
-              inject: () => ({ t }),
+              inject: () => ({ t, useLocaleTick }),
             },
             function DeleteSessionMenuItem(props) {
               const { sessionId, displayTitle, useMenuOpenState, t: tr } = props
+              props.useLocaleTick()
               const [, setMenuOpen] = useMenuOpenState()
               return React.createElement(
                 'div',
@@ -674,9 +719,10 @@ window.__ModuleLoader__.load({
               id: `${NS}.confirm`,
               order: 20,
               label: () => t('title'),
-              inject: () => ({ hooks: { dialogRequest }, t }),
+              inject: () => ({ hooks: { dialogRequest }, t, useLocaleTick }),
             },
             function DeleteSessionConfirm(props) {
+              props.useLocaleTick()
               const current = props.useDialogRequest((value) => value)
               if (current === null || current === undefined) return null
               return React.createElement(ConfirmDialog, {
@@ -709,9 +755,10 @@ window.__ModuleLoader__.load({
             {
               name: 'main',
               key: PANEL_ID,
-              inject: () => ({ hooks: { trash: trashStore }, openConfirm, t }),
+              inject: () => ({ hooks: { trash: trashStore }, openConfirm, t, useLocaleTick }),
             },
             function TrashPanel(props) {
+              props.useLocaleTick()
               return React.createElement(TrashPage, {
                 useTrash: props.useTrash,
                 openConfirm: props.openConfirm,

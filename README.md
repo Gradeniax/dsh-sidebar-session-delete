@@ -32,7 +32,9 @@ files"). So deletion is modelled as two explicit stages:
    root into a sibling trash directory, the Session is archived (which is what
    hides the row), and an entry is recorded in `trash.json`.
 2. **Delete forever** — the trashed directory is removed and the Session's
-   archive flag and workspace slot are dropped.
+   Workspace slot is dropped. The archive flag is deliberately *kept*, so a
+   Session that is still resident in memory cannot reappear as an "Ungrouped"
+   row now that its log is gone.
 
 Because stage one is a move, it is fully reversible, and it also takes the log
 out of the persistence root so the Host stops indexing it. The trash directory
@@ -51,6 +53,14 @@ conversations.
   the trash root would land inside the Sessions root.
 - **Bookkeeping never blocks.** Archive/detach failures after a successful move
   are reported as warnings, not as a failed delete.
+- **A deleted conversation stays hidden.** Deleting forever keeps the archive
+  flag instead of clearing it. A Session can still be resident in memory after
+  its log is gone, and clearing the flag would make exactly that Session
+  reappear — detached from every Workspace — under "Ungrouped". The leftover id
+  is inert: it can only hide an id that no longer exists.
+- **Restore undoes the trashing only.** A conversation archived *before* it was
+  trashed stays archived when restored; the trashing you are undoing does not
+  silently unarchive something you hid earlier.
 
 ## Trash storage
 
@@ -145,7 +155,7 @@ MIT
 DSH 会话日志为只追加结构，持久化层没有删除 API（JSONL 后端文档明确写了 "Nothing deletes session files"），因此删除被建模为两个明确阶段：
 
 1. **移入回收站** —— 把会话日志目录从持久化根目录**移动**到相邻的回收站目录，归档该会话（这正是让行消失的机制），并在 `trash.json` 中记录条目。
-2. **永久删除** —— 删除回收站中的目录，并清除该会话的归档标记与工作区账目。
+2. **永久删除** —— 删除回收站中的目录，并移除该会话的工作区账目；**保留归档标记**。
 
 因为第一阶段是移动，所以完全可逆；同时把日志移出持久化根目录，Host 便不再索引它。回收站目录刻意放在会话根目录的**同级**：后端会扫描该根目录下的项目目录，若回收站放在其中会被当成会话重新索引。
 
@@ -155,6 +165,8 @@ DSH 会话日志为只追加结构，持久化层没有删除 API（JSONL 后端
 - **移动失败不会丢数据**：移动是原子的；失败时回滚归档，行重新出现且内容完好。
 - **路径包含校验**：任何移动或删除前都校验路径位于会话根或回收站根之内；若回收站会落在会话根内部，插件直接拒绝加载。
 - **簿记不阻塞删除**：移动成功后的归档/摘除失败只记为警告，不算删除失败。
+- **永久删除后仍保持隐藏**：永久删除会**保留**归档标记而不是清除。会话日志虽已删除，但该会话仍可能驻留内存；一旦清除标记，它就会以"已从所有工作区摘除"的形态重新出现在**未分组**下。残留的归档 id 是无害的——它只能隐藏一个已不存在的 id。
+- **恢复只撤销"移入回收站"这一步**：若某对话在移入回收站**之前**就已被归档，恢复后仍保持归档；恢复不会顺手把你先前隐藏的对话解除归档。
 
 ### 回收站存储
 
