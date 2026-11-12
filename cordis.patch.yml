@@ -1,0 +1,6 @@
+- insert:
+    - id: sidebar-session-delete
+      name: dsh-sidebar-session-delete
+      config:
+        root: ''
+        trashRoot: ''

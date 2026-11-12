@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Sidebar Session Delete + Trash",
+    "description": "Delete any conversation from its sidebar row menu into a Trash panel, then restore it or delete it forever."
+  }
+}

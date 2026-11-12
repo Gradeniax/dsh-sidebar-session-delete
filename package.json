@@ -1,0 +1,51 @@
+{
+  "name": "dsh-sidebar-session-delete",
+  "version": "1.0.0",
+  "description": "Delete any conversation from the left workspace sidebar of DeepSeek Harness, with a restorable trash in between.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "session",
+    "trash",
+    "recycle-bin",
+    "sidebar"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gradeniax/dsh-sidebar-session-delete.git"
+  },
+  "homepage": "https://github.com/Gradeniax/dsh-sidebar-session-delete#readme",
+  "bugs": {
+    "url": "https://github.com/Gradeniax/dsh-sidebar-session-delete/issues"
+  },
+  "author": "Gradeniax",
+  "license": "MIT"
+}
