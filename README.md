@@ -77,8 +77,25 @@ it.
 
 ## Install
 
-This package is not published to npm; install it into the DSH profile that
-should run it.
+The package is **not published to npm**, so a bare package name will not
+resolve. Install it straight from this repository with the `github:` spec:
+
+```text
+github:Gradeniax/dsh-sidebar-session-delete
+```
+
+### From the DSH UI or an agent
+
+Open **Plugins → add / install** and paste the spec above, or simply ask the
+agent to install it. Both reach the same `install_bundle` operation.
+
+### From the dsh CLI
+
+```bash
+dsh plugin --profile <profile> add github:Gradeniax/dsh-sidebar-session-delete
+```
+
+### Manually
 
 ```bash
 cd "$DSH_HOME/profiles/<profile>"
@@ -94,11 +111,22 @@ applied:
 }
 ```
 
-Restart DSH. The browser half appears on the next page load; if it does not,
-restart again — a replaced package needs a fresh JavaScript module generation.
+### After installing
 
-Inside a DSH session you can instead hand the checkout to `plugin_manager` →
-`install_bundle`, which performs the same package and bundle registration.
+Restart DSH. A change to the **Host half** only takes effect after a restart —
+Node caches the ES module, and reinstalling runs the patch without reloading
+code. A change to the **browser half** appears on the next page load.
+
+Repository: <https://github.com/Gradeniax/dsh-sidebar-session-delete>
+
+## Compatibility
+
+Built and tested against DSH `0.2.1-rc.5` (desktop). It requires these Host
+services — `webServer`, `sessionPersistence`, `workspaceRegistry`, `sessions`,
+`agents` — and these slots: `sidebar.workspaces.session.menu.item`,
+`sidebar.panellist`, `main`, `shell.overlay`, plus `locale` on the Client side.
+A deployment that renames or removes any of them leaves the plugin inactive
+rather than breaking the UI.
 
 ## Configuration
 
@@ -180,7 +208,23 @@ DSH 会话日志为只追加结构，持久化层没有删除 API（JSONL 后端
 
 ### 安装
 
-本包未发布到 npm，请直接安装到需要运行它的 DSH profile 中。
+本包**未发布到 npm**，直接写包名是装不上的。请用 `github:` 形式从本仓库安装：
+
+```text
+github:Gradeniax/dsh-sidebar-session-delete
+```
+
+#### 在 DSH 界面里或让 AI 安装
+
+打开 **插件 → 添加 / 安装**，粘贴上面的 spec；或直接让 AI 帮你装。两者最终都走同一个 `install_bundle`。
+
+#### 用 dsh 命令行
+
+```bash
+dsh plugin --profile <profile> add github:Gradeniax/dsh-sidebar-session-delete
+```
+
+#### 手动安装
 
 ```bash
 cd "$DSH_HOME/profiles/<profile>"
@@ -195,9 +239,15 @@ pnpm add github:Gradeniax/dsh-sidebar-session-delete
 }
 ```
 
-重启 DSH。浏览器端会在下次加载页面时出现；若没有，请再次重启——替换包需要新的 JavaScript 模块代际。
+#### 安装之后
 
-也可以在 DSH 会话中把检出目录交给 `plugin_manager` 的 `install_bundle`，它会完成同样的包与 bundle 注册。
+**重启 DSH**。改动 **Host 半** 必须重启才生效——Node 会缓存 ESM 模块，重新安装只重跑 patch、不重载代码；改动 **浏览器半** 刷新页面即可。
+
+仓库地址：<https://github.com/Gradeniax/dsh-sidebar-session-delete>
+
+### 兼容性
+
+基于 DSH `0.2.1-rc.5`（桌面版）开发并测试。依赖以下 Host 服务：`webServer`、`sessionPersistence`、`workspaceRegistry`、`sessions`、`agents`；依赖以下 slot：`sidebar.workspaces.session.menu.item`、`sidebar.panellist`、`main`、`shell.overlay`，以及客户端的 `locale`。若某个部署改名或移除了其中任一，插件会保持未激活，而不会破坏界面。
 
 ### 配置
 
